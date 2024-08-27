@@ -230,9 +230,13 @@ class MapController extends GetxController {
   getCurrentLocation() {
     getUserCurrentLocation().then((value) async {
       updateLocation(value.latitude, value.longitude);
+      print(value.floor);
       print('My current location');
       print(
           "My Current Location:^^^^^^^^^^^^^^^^^^${value.latitude}, ${value.longitude}");
+
+      List<Placemark> placemarks = await placemarkFromCoordinates(value.latitude, value.longitude);
+      print("Placemarks: ============>>>>$placemarks");
       marker.add(Marker(
           markerId: MarkerId("My location"),
           position: LatLng(value.latitude, value.longitude),
