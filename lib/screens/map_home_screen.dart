@@ -1,9 +1,13 @@
 
+import 'dart:convert';
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_app/controller/map_controller.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:http/http.dart' as http;
 
 class MapHomeScreen extends StatefulWidget {
   const MapHomeScreen({super.key});
@@ -16,12 +20,102 @@ class _MapHomeScreenState extends State<MapHomeScreen> {
 
 
   final mapController = Get.put(MapController());
+
+  final Set<Polyline> _polylines = {};
+  final List<LatLng> _points = [
+    LatLng(23.763999373281255, 90.4287651926279),
+    LatLng(23.776176, 90.425674),
+  ];
+
+  final LatLng _origin = LatLng(23.776176, 90.425674); // San Francisco
+  final LatLng _destination = LatLng(23.763999373281255, 90.4287651926279); // Los Angeles
+  final String _apiKey = "AIzaSyCZ6YIiEkZnGVCQUyFIKsu3RdOJ49GVeLU"; // Replace with your API key
+
   static const CameraPosition _kLake = CameraPosition(
       bearing: 192.8334901395799,
       target: LatLng(23.769423999999997,90.41428529999999),
       tilt: 59.440717697143555,
       zoom: 18);
 
+
+  void _createPolylines() {
+    final polyline = Polyline(
+      polylineId: PolylineId('route1'),
+      points: _points,
+      color: Colors.blue,
+      width: 6,
+    );
+    _polylines.add(polyline);
+  }
+
+  Future<void> _getRoute() async {
+    final response = await http.get(Uri.parse(
+        'https://maps.googleapis.com/maps/api/directions/json?origin=${_origin.latitude},${_origin.longitude}&destination=${_destination.latitude},${_destination.longitude}&key=$_apiKey'));
+
+    log("${response.statusCode}");
+    log(response.body);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+
+      if (data["routes"].isNotEmpty) {
+        final route = data["routes"][0]["overview_polyline"]["points"];
+        final points = _decodePolyline(route);
+
+        setState(() {
+          _polylines.add(
+            Polyline(
+              polylineId: PolylineId("route"),
+              points: points,
+              color: Colors.blue,
+              width: 5,
+            ),
+          );
+        });
+      }
+    } else {
+      print("Failed to fetch route: ${response.body}");
+    }
+  }
+
+  List<LatLng> _decodePolyline(String encoded) {
+    List<LatLng> points = [];
+    int index = 0, len = encoded.length;
+    int lat = 0, lng = 0;
+
+    while (index < len) {
+      int shift = 0, result = 0;
+      int b;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+      lat += dlat;
+
+      shift = 0;
+      result = 0;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+      lng += dlng;
+
+      points.add(LatLng(lat / 1E5, lng / 1E5));
+    }
+    return points;
+  }
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    // _createPolylines();
+    mapController.setMarker(LatLng(23.776176, 90.425674), "Truck", "");
+    _getRoute();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -119,6 +213,8 @@ class _MapHomeScreenState extends State<MapHomeScreen> {
                 print("==============Map Tapped Here: ${mapController.placeAddress} ====================");
                 mapController.isTapped.value = false;
               },
+
+              polylines: _polylines,
             )),
           ),
         ],

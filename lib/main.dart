@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_app/controller/map_controller.dart';
 import 'package:google_maps_app/screens/map_home_screen.dart';
+import 'package:google_maps_app/screens/map_screen.dart';
 
 void main() {
   runApp(const MyApp());

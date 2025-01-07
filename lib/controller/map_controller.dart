@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'package:custom_info_window/custom_info_window.dart';
 import 'package:custom_marker/marker_icon.dart';
 import 'package:flutter/material.dart';
@@ -27,6 +28,8 @@ class MapController extends GetxController {
   List<Marker> marker = [];
   List<Placemark> placeAddress = [];
   List<Location> locationCoOrdinates = [];
+
+  double _truckBearing = 180; // Example bearing in degrees
 
   void updateLocation(double lat, double lng) {
     userLatitude.value = lat;
@@ -114,12 +117,12 @@ class MapController extends GetxController {
       //   );
       // }
     ),
-    const Marker(
-        markerId: MarkerId('2'),
-        position: LatLng(23.776176, 90.425674),
-        infoWindow: InfoWindow(
-          title: 'Badda',
-        )),
+    // const Marker(
+    //     markerId: MarkerId('2'),
+    //     position: LatLng(23.776176, 90.425674),
+    //     infoWindow: InfoWindow(
+    //       title: 'Badda',
+    //     )),
     const Marker(
         markerId: MarkerId('My Home'),
         position: LatLng(23.7814561, 90.4215143),
@@ -140,6 +143,42 @@ class MapController extends GetxController {
       onChange();
     });
     super.onInit();
+  }
+
+  double calculateBearing(LatLng start, LatLng end) {
+    double deltaLongitude = end.longitude - start.longitude;
+    double y = sin(deltaLongitude) * cos(end.latitude);
+    double x = cos(start.latitude) * sin(end.latitude) -
+        sin(start.latitude) * cos(end.latitude) * cos(deltaLongitude);
+    double initialBearing = atan2(y, x);
+    return (initialBearing * 180 / pi) % 360;
+  }
+
+// Load custom truck icon
+
+  Future<BitmapDescriptor> _loadTruckIcon(BuildContext context) async {
+    return await BitmapDescriptor.asset(
+        ImageConfiguration(
+            devicePixelRatio: MediaQuery.of(context).devicePixelRatio),
+        "assets/icons/truckIcon.png",
+      height: 70, width: 40
+        );
+  }
+  
+  setMarker(LatLng latLng, String placeId, String address) async {
+    final BitmapDescriptor customMarker = await _loadTruckIcon(Get.context!);
+    Marker newMarker = Marker(
+      onTap: () {
+      },
+      infoWindow: InfoWindow(title: address.split(",")[0]),
+      icon: customMarker,
+      markerId: MarkerId(placeId), // Use a unique MarkerId for each marker
+      position: LatLng(latLng.latitude, latLng.longitude),
+      rotation: calculateBearing(LatLng(23.776176, 90.425674), LatLng(23.763999373281255, 90.4287651926279)),
+    );
+
+    marker.add(newMarker);
+    update();
   }
 
   customMarker(
