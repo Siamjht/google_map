@@ -164,17 +164,33 @@ class MapController extends GetxController {
       height: 70, width: 40
         );
   }
-  
-  setMarker(LatLng latLng, String placeId, String address) async {
+
+  ///==================== Set
+  setMyLocationMarker(LatLng latLng, String placeId,) async {
     final BitmapDescriptor customMarker = await _loadTruckIcon(Get.context!);
     Marker newMarker = Marker(
       onTap: () {
       },
-      infoWindow: InfoWindow(title: address.split(",")[0]),
+      infoWindow: const InfoWindow(title: "My current location"),
       icon: customMarker,
       markerId: MarkerId(placeId), // Use a unique MarkerId for each marker
       position: LatLng(latLng.latitude, latLng.longitude),
-      rotation: calculateBearing(LatLng(23.776176, 90.425674), LatLng(23.763999373281255, 90.4287651926279)),
+      rotation: calculateBearing(LatLng(latLng.latitude, latLng.longitude), LatLng(23.776176, 90.425674)),
+    );
+
+    marker.add(newMarker);
+    update();
+  }
+  setMarker(LatLng latLng, LatLng endLatLng, String placeId) async {
+    final BitmapDescriptor customMarker = await _loadTruckIcon(Get.context!);
+    Marker newMarker = Marker(
+      onTap: () {
+      },
+      infoWindow: InfoWindow(title: placeId),
+      icon: customMarker,
+      markerId: MarkerId(placeId), // Use a unique MarkerId for each marker
+      position: LatLng(latLng.latitude, latLng.longitude),
+      rotation: calculateBearing(LatLng(latLng.latitude, latLng.longitude), LatLng(endLatLng.latitude, endLatLng.longitude)),
     );
 
     marker.add(newMarker);

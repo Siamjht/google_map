@@ -4,6 +4,7 @@ import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_app/controller/map_controller.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -21,6 +22,10 @@ class _MapHomeScreenState extends State<MapHomeScreen> {
 
   final mapController = Get.put(MapController());
 
+  GoogleMapController? _mapController;
+  LatLng _currentLocation = LatLng(37.7749, -122.4194); // Initial location
+  double _currentHeading = 0.0; // Initial heading
+
   final Set<Polyline> _polylines = {};
   final List<LatLng> _points = [
     LatLng(23.763999373281255, 90.4287651926279),
@@ -30,6 +35,8 @@ class _MapHomeScreenState extends State<MapHomeScreen> {
   final LatLng _origin = LatLng(23.776176, 90.425674); // San Francisco
   final LatLng _destination = LatLng(23.763999373281255, 90.4287651926279); // Los Angeles
   final String _apiKey = "AIzaSyCZ6YIiEkZnGVCQUyFIKsu3RdOJ49GVeLU"; // Replace with your API key
+  double firstStepEndLat = 0.0;
+  double firstStepEndLng = 0.0;
 
   static const CameraPosition _kLake = CameraPosition(
       bearing: 192.8334901395799,
@@ -60,6 +67,10 @@ class _MapHomeScreenState extends State<MapHomeScreen> {
       if (data["routes"].isNotEmpty) {
         final route = data["routes"][0]["overview_polyline"]["points"];
         final points = _decodePolyline(route);
+
+        var firstStepEndLocation = data['routes'][0]['legs'][0]['steps'][0]['end_location'];
+        firstStepEndLat = firstStepEndLocation['lat'];
+        firstStepEndLng = firstStepEndLocation['lng'];
 
         setState(() {
           _polylines.add(
@@ -108,13 +119,75 @@ class _MapHomeScreenState extends State<MapHomeScreen> {
     return points;
   }
 
+
+  String locationMessage = "";
+  Future<void> _getCurrentLocation() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    // Check if location services are enabled
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      setState(() {
+        locationMessage = "Location services are disabled.";
+      });
+      return;
+    }
+
+    // Request location permissions
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        setState(() {
+          locationMessage = "Location permissions are denied.";
+        });
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      setState(() {
+        locationMessage = "Location permissions are permanently denied. We cannot request permissions.";
+      });
+      return;
+    }
+
+    // Get the current position
+    Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high);
+    setState(() {
+      locationMessage = "Latitude: ${position.latitude}, Longitude: ${position.longitude}";
+      log("My current location: $locationMessage");
+      mapController.setMyLocationMarker(LatLng(position.latitude, position.longitude), "My current location");
+      mapController.setMarker(LatLng(23.776176, 90.425674), LatLng(firstStepEndLat, firstStepEndLng), "Truck", );
+      _currentLocation = LatLng(position.latitude, position.longitude);
+    });
+  }
+
+  void _startLocationUpdates() {
+    Geolocator.getPositionStream(locationSettings: const LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 5, // Update every 5 meters
+    )).listen((Position position) {
+      setState(() {
+        _currentLocation = LatLng(position.latitude, position.longitude);
+        _currentHeading = position.heading; // Heading in degrees
+      });
+
+      // Move the map camera to the new position
+      _mapController?.animateCamera(CameraUpdate.newLatLng(_currentLocation));
+    });
+  }
+
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
     // _createPolylines();
-    mapController.setMarker(LatLng(23.776176, 90.425674), "Truck", "");
+    // mapController.setMarker(LatLng(23.776176, 90.425674), "Truck", "");
     _getRoute();
+    _getCurrentLocation().then((value) => _startLocationUpdates());
   }
 
   @override

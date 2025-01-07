@@ -40,7 +40,7 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void getSuggestion(String inputText) async{
-    String kPlacesApiKey = "AIzaSyDUjNaRwWEUbn__efy3duv9cFQak66jI4o";
+    String kPlacesApiKey = "AIzaSyCZ6YIiEkZnGVCQUyFIKsu3RdOJ49GVeLU";
     String baseURL ='https://maps.googleapis.com/maps/api/place/autocomplete/json';
     String request = '$baseURL?input=$inputText&key=$kPlacesApiKey&sessiontoken= $sessionToken';
 
